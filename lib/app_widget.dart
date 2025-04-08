@@ -1,6 +1,9 @@
+import 'package:flow/providers/auth_provider.dart';
+import 'package:flow/screens/catalog_screen.dart';
 import 'package:flow/screens/password_recovery_screen.dart';
 import 'package:flow/screens/register_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 
 class AppWidget extends StatelessWidget {
@@ -14,7 +17,6 @@ class AppWidget extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        // primarySwatch: Colors.blue,
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
@@ -30,11 +32,18 @@ class AppWidget extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginScreen(),
+      home: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          return authProvider.user != null
+              ? const CatalogScreen()
+              : const LoginScreen();
+        },
+      ),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/recovery': (context) => const PasswordRecoveryScreen(),
+        '/catalog': (context) => const CatalogScreen(),
       },
     );
   }
