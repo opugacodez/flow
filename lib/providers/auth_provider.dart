@@ -42,8 +42,7 @@ class AuthProvider with ChangeNotifier {
 
     try {
       await _authService.signIn(email: email, password: password);
-      // Mock: Simular usuário logado
-      _user = User(name: 'Mock User', email: email, phone: '0000-0000');
+      _user = User(name: 'Usuário Mockado', email: email, phone: '(11) 99999-9999');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -60,5 +59,10 @@ class AuthProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> signOut() async {
+    _user = null;
+    notifyListeners();
   }
 }
