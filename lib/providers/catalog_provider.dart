@@ -2,42 +2,44 @@ import 'package:flow/models/cat.dart';
 import 'package:flow/models/filter.dart';
 import 'package:flow/services/cat_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:rxdart/rxdart.dart';
 
 class CatalogProvider with ChangeNotifier {
   final CatService _catService = CatService();
-  List<Cat> _cats = [];
-  List<Cat> _filteredCats = [];
-  CatFilter _currentFilter = CatFilter();
 
-  List<Cat> get cats => _filteredCats;
-  CatFilter get currentFilter => _currentFilter;
+  final _filterController = BehaviorSubject<CatFilter>.seeded(CatFilter());
 
-  Future<void> loadCats() async {
-    _cats = await _catService.getCats();
-    _applyFilters();
-  }
+  Stream<List<Cat>> get filteredCatsStream =>
+      Rx.combineLatest2<List<Cat>, CatFilter, List<Cat>>(
+        _catService.getCats(),
+        _filterController.stream,
+        _applyFilters,
+      );
 
-  void _applyFilters() {
-    _filteredCats = _cats.where((cat) {
-      return (_currentFilter.gender.isEmpty || cat.gender == _currentFilter.gender) &&
-          (_currentFilter.size.isEmpty || cat.size == _currentFilter.size) &&
-          (_currentFilter.color.isEmpty || cat.color == _currentFilter.color) &&
-          (_currentFilter.location.isEmpty || cat.location == _currentFilter.location) &&
-          (cat.age >= _currentFilter.minAge && cat.age <= _currentFilter.maxAge);
+  CatFilter get currentFilter => _filterController.value;
+
+  List<Cat> _applyFilters(List<Cat> cats, CatFilter filter) {
+    return cats.where((cat) {
+      final statusMatch = cat.status == 'Disponível';
+
+      final filterMatch =
+          (filter.gender.isEmpty || cat.gender == filter.gender) &&
+          (filter.size.isEmpty || cat.size == filter.size) &&
+          (filter.color.isEmpty || cat.color == filter.color) &&
+          (filter.location.isEmpty || cat.location == filter.location) &&
+          (cat.age >= filter.minAge && cat.age <= filter.maxAge);
+
+      return statusMatch && filterMatch;
     }).toList();
-    notifyListeners();
   }
 
   void updateFilter(CatFilter newFilter) {
-    _currentFilter = newFilter;
-    _applyFilters();
+    _filterController.add(newFilter);
   }
 
-  void toggleFavorite(String catId) {
-    final index = _cats.indexWhere((c) => c.id == catId);
-    _cats[index].isFavorited = !_cats[index].isFavorited;
-    _applyFilters();
-    notifyListeners();
+  @override
+  void dispose() {
+    _filterController.close();
+    super.dispose();
   }
-
 }

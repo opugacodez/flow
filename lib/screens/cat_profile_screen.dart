@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/cat.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flow/services/cat_service.dart';
 
 class CatProfileScreen extends StatefulWidget {
   final Cat cat;
@@ -212,7 +214,6 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
   Widget _buildAdoptionButton(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      // color: Colors.white,
       child: FilledButton.icon(
         icon: const Icon(Icons.pets),
         label: const Text('Quero Adotar'),
@@ -222,22 +223,42 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
   }
 
   void _showAdoptionDialog(BuildContext context) {
+    final catService = CatService();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Iniciar Processo de Adoção'),
-        content: const Text('Entraremos em contato para continuar o processo. Confirmar interesse?'),
+        content: const Text('Confirmar interesse? Entraremos em contato.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Solicitação enviada com sucesso!')),
-              );
+            onPressed: () async {
+              if (userId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Você precisa estar logado!')),
+                );
+                Navigator.pop(context);
+                return;
+              }
+              try {
+                await catService.requestAdoption(userId, widget.cat.id);
+                
+                await catService.updateCatStatus(widget.cat.id, 'Adoção em andamento');
+                
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Solicitação enviada com sucesso!')),
+                );
+              } catch (e) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro: $e')),
+                );
+              }
             },
             child: const Text('Confirmar'),
           ),

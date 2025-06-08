@@ -1,5 +1,5 @@
+import 'package:flow/models/user.dart';
 import 'package:flutter/material.dart';
-import '../models/user.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -10,6 +10,26 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   bool get isLoading => _isLoading;
 
+  AuthProvider() {
+    _authService.authStateChanges.listen(_onAuthStateChanged);
+  }
+
+  Future<void> _onAuthStateChanged(dynamic firebaseUser) async {
+    if (firebaseUser == null) {
+      _user = null;
+    } else {
+      final userData = await _authService.getUserData(firebaseUser.uid);
+      if (userData != null) {
+        _user = User(
+          name: userData['name'],
+          email: userData['email'],
+          phone: userData['phone'],
+        );
+      }
+    }
+    notifyListeners();
+  }
+
   Future<void> register({
     required String email,
     required String password,
@@ -18,7 +38,6 @@ class AuthProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-
     try {
       await _authService.signUp(
         email: email,
@@ -26,7 +45,6 @@ class AuthProvider with ChangeNotifier {
         name: name,
         phone: phone,
       );
-      _user = User(name: name, email: email, phone: phone);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -39,10 +57,8 @@ class AuthProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-
     try {
       await _authService.signIn(email: email, password: password);
-      _user = User(name: 'Usuário Mockado', email: email, phone: '(11) 99999-9999');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -52,7 +68,6 @@ class AuthProvider with ChangeNotifier {
   Future<void> recoverPassword({String? email}) async {
     _isLoading = true;
     notifyListeners();
-
     try {
       await _authService.recoverPassword(email: email);
     } finally {
@@ -62,6 +77,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    await _authService.signOut();
     _user = null;
     notifyListeners();
   }

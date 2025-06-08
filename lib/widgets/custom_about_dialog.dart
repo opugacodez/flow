@@ -7,44 +7,47 @@ class CustomAboutDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage(
-                  'assets/developer.jpg'),
+            const CircleAvatar(
+              radius: 40,
+              backgroundImage: AssetImage('assets/developer.jpg'),
             ),
-            SizedBox(height: 20),
-
-            Text(
-              'Murilo Manfre',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Flow - App de Adoção de Gatos',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 10),
-
+            const SizedBox(height: 10),
+            const Text(
+              'Objetivo: Conectar gatos que precisam de um lar com pessoas dispostas a oferecer amor e cuidado, facilitando o processo de adoção.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Desenvolvido por:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const Text('Murilo Manfre'),
+            const SizedBox(height: 10),
             InkWell(
               onTap: () => _launchURL('https://github.com/murilomanfre/flow'),
-              child: Text(
-                'https://github.com/murilomanfre/flow',
+              child: const Text(
+                'GitHub do Projeto',
                 style: TextStyle(
                   color: Colors.blue,
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
-            SizedBox(height: 20),
-
+            const SizedBox(height: 20),
             ElevatedButton(
-              child: Text('Fechar'),
+              child: const Text('Fechar'),
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -54,8 +57,9 @@ class CustomAboutDialog extends StatelessWidget {
   }
 
   void _launchURL(String url) async {
-    if (await canLaunchUrl(Uri.dataFromString(url))) {
-      await launchUrl(Uri.dataFromString(url));
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     } else {
       throw 'Não foi possível abrir $url';
     }

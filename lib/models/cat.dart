@@ -14,6 +14,7 @@ class Cat {
   final bool vaccinated;
   final bool neutered;
   bool isFavorited;
+  final String status;
 
   Cat({
     required this.id,
@@ -31,5 +32,26 @@ class Cat {
     this.vaccinated = false,
     this.neutered = false,
     this.isFavorited = false,
+    this.status = 'Disponível',
   });
+
+  factory Cat.fromMap(String id, Map<String, dynamic> data) {
+    return Cat(
+      id: id,
+      name: data['name'] ?? '',
+      age: data['age'] ?? 0,
+      gender: data['gender'] ?? '',
+      color: data['color'] ?? '',
+      size: data['size'] ?? '',
+      location: data['location'] ?? '',
+      description: data['description'] ?? '',
+      profileImageUrl: data['profileImageUrl'] ?? '',
+      images: List<String>.from(data['images'] ?? []),
+      healthHistory: data['healthHistory'] ?? '',
+      personality: data['personality'] ?? '',
+      vaccinated: data['vaccinated'] ?? false,
+      neutered: data['neutered'] ?? false,
+      status: data['status'] ?? 'Disponível',
+    );
+  }
 }
