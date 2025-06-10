@@ -1,33 +1,83 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flow/models/cat.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Stream<List<Cat>> getCats() {
+  Future<void> addCat(Map<String, dynamic> catData) async {
+    await _firestore.collection('cats').add(catData);
+  }
+
+  Future<void> updateCat(String catId, Map<String, dynamic> catData) async {
+    await _firestore.collection('cats').doc(catId).update(catData);
+  }
+
+  Future<void> deleteCat(String catId) async {
+    await _firestore.collection('cats').doc(catId).delete();
+  }
+
+  Stream<List<Cat>> getUserCats(String userId) {
+    return _firestore
+        .collection('cats')
+        .where('ownerId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data())).toList();
+    });
+  }
+
+  Stream<List<Cat>> getAvailableCats() {
+    final currentUser = _auth.currentUser;
     return _firestore.collection('cats').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data())).where((cat) {
+        final isAvailable = cat.status == 'Disponível';
+        final isMyAdoption = cat.status == 'Adoção em andamento' && cat.adopterId == currentUser?.uid;
+        return isAvailable || isMyAdoption;
+      }).toList();
+    });
+  }
+
+  Stream<List<Cat>> getMyAdoptions(String userId) {
+    return _firestore
+        .collection('cats')
+        .where('status', isEqualTo: 'Adoção em andamento')
+        .where('adopterId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data())).toList();
     });
   }
 
   Future<List<Cat>> searchCats(String query, {String? orderBy, bool descending = false}) async {
-    Query collection = _firestore.collection('cats');
+    Query collection = _firestore.collection('cats').where('status', isEqualTo: 'Disponível');
 
-    if (query.isNotEmpty) {
-      collection = collection.where('name_lowercase', isGreaterThanOrEqualTo: query.toLowerCase())
-                           .where('name_lowercase', isLessThanOrEqualTo: '${query.toLowerCase()}\uf8ff');
-    }
+    final searchQuery = query.trim().toLowerCase();
 
-    if (orderBy != null) {
+    if (searchQuery.isNotEmpty) {
+      collection = collection
+          .orderBy('name_lowercase')
+          .where('name_lowercase', isGreaterThanOrEqualTo: searchQuery)
+          .where('name_lowercase', isLessThanOrEqualTo: '$searchQuery\uf8ff');
+    } else if (orderBy != null && orderBy.isNotEmpty) {
       collection = collection.orderBy(orderBy, descending: descending);
     }
-    
+
     final snapshot = await collection.get();
     return snapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
   }
 
-  Future<void> updateCatStatus(String catId, String status) async {
-    await _firestore.collection('cats').doc(catId).update({'status': status});
+  Future<void> requestAdoption(String userId, String catId) async {
+    await _firestore.collection('adoption_requests').add({
+      'userId': userId,
+      'catId': catId,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    await _firestore.collection('cats').doc(catId).update({
+      'status': 'Adoção em andamento',
+      'adopterId': userId,
+    });
   }
 
   Future<void> addFavorite(String userId, String catId) async {
@@ -47,19 +97,11 @@ class CatService {
 
     return favoritesStream.asyncMap((snapshot) async {
       if (snapshot.docs.isEmpty) return [];
-      
+
       final catIds = snapshot.docs.map((doc) => doc.id).toList();
       final catsSnapshot = await _firestore.collection('cats').where(FieldPath.documentId, whereIn: catIds).get();
-      
-      return catsSnapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data())).toList();
-    });
-  }
 
-  Future<void> requestAdoption(String userId, String catId) async {
-    await _firestore.collection('adoption_requests').add({
-      'userId': userId,
-      'catId': catId,
-      'timestamp': FieldValue.serverTimestamp(),
+      return catsSnapshot.docs.map((doc) => Cat.fromMap(doc.id, doc.data())).toList();
     });
   }
 }

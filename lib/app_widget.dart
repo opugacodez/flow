@@ -1,13 +1,11 @@
 import 'package:flow/providers/auth_provider.dart';
-import 'package:flow/screens/catalog_screen.dart';
+import 'package:flow/screens/main_screen.dart';
 import 'package:flow/screens/password_recovery_screen.dart';
 import 'package:flow/screens/register_screen.dart';
+import 'package:flow/screens/search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
-import 'package:flow/screens/favorites_screen.dart';
-import 'package:flow/screens/profile_screen.dart';
-import 'package:flow/screens/search_screen.dart';
 
 class AppWidget extends StatelessWidget {
   const AppWidget({super.key});
@@ -38,7 +36,7 @@ class AppWidget extends StatelessWidget {
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           return authProvider.user != null
-              ? const CatalogScreen()
+              ? const MainScreen()
               : const LoginScreen();
         },
       ),
@@ -46,9 +44,6 @@ class AppWidget extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/recovery': (context) => const PasswordRecoveryScreen(),
-        '/catalog': (context) => const CatalogScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/favorites': (context) => const FavoritesScreen(),
         '/search': (context) => const SearchScreen(),
       },
     );

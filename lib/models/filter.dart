@@ -14,4 +14,13 @@ class CatFilter {
     this.color = '',
     this.location = '',
   });
+
+  bool isDefault() {
+    return minAge == 0 &&
+        maxAge == 20 &&
+        gender.isEmpty &&
+        size.isEmpty &&
+        color.isEmpty &&
+        location.isEmpty;
+  }
 }

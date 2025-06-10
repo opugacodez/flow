@@ -1,6 +1,9 @@
+import 'package:flow/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +18,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
   final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+  final _phoneMask = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {'#': RegExp(r'[0-9]')},
+  );
 
   @override
   void initState() {
@@ -46,10 +54,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-  
+
   Future<void> _updateUserData() async {
     if (!_formKey.currentState!.validate() || userId == null) return;
-    
+
     setState(() => _isLoading = true);
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
@@ -92,8 +100,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Telefone'),
-                validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [_phoneMask],
+                decoration: const InputDecoration(
+                  labelText: 'Telefone',
+                  hintText: '(99) 99999-9999',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Campo obrigatório';
+                  if (!_phoneMask.isFill()) return 'Número incompleto';
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -102,6 +119,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Salvar Alterações'),
               ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Provider.of<AuthProvider>(context, listen: false).signOut();
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Sair'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red[400]),
+              )
             ],
           ),
         ),

@@ -16,55 +16,65 @@ class _FilterScreenState extends State<FilterScreen> {
   @override
   void initState() {
     super.initState();
-    _tempFilter = Provider.of<CatalogProvider>(context, listen: false).currentFilter;
+    // Clona o filtro atual para não modificar o estado global diretamente
+    final currentFilter = Provider.of<CatalogProvider>(context, listen: false).currentFilter;
+    _tempFilter = CatFilter(
+      minAge: currentFilter.minAge,
+      maxAge: currentFilter.maxAge,
+      gender: currentFilter.gender,
+      size: currentFilter.size,
+      color: currentFilter.color,
+      location: currentFilter.location,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Filtrar por:',
-            style: TextStyle(
-              fontSize: 20,
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Filtrar por:',
+              style: TextStyle(
+                fontSize: 20,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          _buildAgeRangeFilter(),
-          const SizedBox(height: 6),
-          _buildDropdown('Gênero', ['', 'Macho', 'Fêmea'], _tempFilter.gender),
-          const SizedBox(height: 20),
-          _buildDropdown('Porte', ['', 'Pequeno', 'Médio', 'Grande'], _tempFilter.size),
-          const SizedBox(height: 20),
-          _buildDropdown('Cor', ['', 'Preto', 'Branco', 'Cinza'], _tempFilter.color),
-          const SizedBox(height: 30),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text(
-                    'Limpar Filtros',
+            const SizedBox(height: 16),
+            _buildAgeRangeFilter(),
+            const SizedBox(height: 16),
+            _buildDropdown('Gênero', ['Macho', 'Fêmea'], (value) => _tempFilter.gender = value, _tempFilter.gender),
+            const SizedBox(height: 16),
+            _buildDropdown('Porte', ['Pequeno', 'Médio', 'Grande'], (value) => _tempFilter.size = value, _tempFilter.size),
+            const SizedBox(height: 16),
+            _buildDropdown('Cor', ['Preto', 'Branco', 'Cinza', 'Laranja', 'Tricolor'], (value) => _tempFilter.color = value, _tempFilter.color),
+            const SizedBox(height: 30),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: _clearFilters,
+                    child: const Text('Limpar Filtros'),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () {
-                    Provider.of<CatalogProvider>(context, listen: false)
-                        .updateFilter(_tempFilter);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Aplicar Filtros'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Provider.of<CatalogProvider>(context, listen: false)
+                          .updateFilter(_tempFilter);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Aplicar Filtros'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -78,7 +88,6 @@ class _FilterScreenState extends State<FilterScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: Colors.grey,
           ),
         ),
         const SizedBox(height: 8),
@@ -118,7 +127,7 @@ class _FilterScreenState extends State<FilterScreen> {
     );
   }
 
-  Widget _buildDropdown(String title, List<String> options, String currentValue) {
+  Widget _buildDropdown(String title, List<String> options, Function(String) onChanged, String currentValue) {
     return InputDecorator(
       decoration: InputDecoration(
         labelText: title,
@@ -130,21 +139,15 @@ class _FilterScreenState extends State<FilterScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: true,
-          value: currentValue,
+          value: currentValue.isEmpty ? null : currentValue,
+          hint: const Text('Todos'),
           items: options.map((value) {
             return DropdownMenuItem(
               value: value,
-              child: Text(
-                value.isEmpty ? 'Todos' : value,
-                style: const TextStyle(fontSize: 16),
-              ),
+              child: Text(value, style: const TextStyle(fontSize: 16)),
             );
           }).toList(),
-          onChanged: (value) => setState(() {
-            if (title == 'Gênero') _tempFilter.gender = value!;
-            if (title == 'Porte') _tempFilter.size = value!;
-            if (title == 'Cor') _tempFilter.color = value!;
-          }),
+          onChanged: (value) => setState(() => onChanged(value!)),
         ),
       ),
     );
@@ -154,7 +157,7 @@ class _FilterScreenState extends State<FilterScreen> {
     setState(() {
       _tempFilter = CatFilter();
     });
-    Provider.of<CatalogProvider>(context, listen: false)
-        .updateFilter(_tempFilter);
+    Provider.of<CatalogProvider>(context, listen: false).clearFilters();
+    Navigator.pop(context);
   }
 }

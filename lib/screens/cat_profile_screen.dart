@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/cat.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flow/services/cat_service.dart';
+import 'package:flow/screens/add_edit_cat_screen.dart';
 
 class CatProfileScreen extends StatefulWidget {
   final Cat cat;
@@ -15,6 +16,7 @@ class CatProfileScreen extends StatefulWidget {
 class _CatProfileScreenState extends State<CatProfileScreen> {
   late PageController _pageController;
   int _currentPageIndex = 0;
+  final CatService _catService = CatService();
 
   @override
   void initState() {
@@ -30,45 +32,104 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isOwner = currentUser != null && currentUser.uid == widget.cat.ownerId;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          _buildImageGallery(),
+          _buildSliverAppBar(isOwner),
           _buildProfileContent(),
         ],
       ),
-      bottomNavigationBar: _buildAdoptionButton(context),
+      bottomNavigationBar: isOwner ? null : _buildAdoptionButton(context),
     );
   }
 
-  SliverAppBar _buildImageGallery() {
+  SliverAppBar _buildSliverAppBar(bool isOwner) {
     return SliverAppBar(
       expandedHeight: 300,
-      flexibleSpace: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.cat.images.length,
-            onPageChanged: (index) {
-              setState(() => _currentPageIndex = index);
-            },
-            itemBuilder: (context, index) => Image.network(
-              widget.cat.images[index],
-              fit: BoxFit.cover,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.cat.images.length,
+              onPageChanged: (index) {
+                setState(() => _currentPageIndex = index);
+              },
+              itemBuilder: (context, index) => Image.network(
+                widget.cat.images[index],
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: _buildImageIndicator(),
-          ),
-        ],
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: _buildImageIndicator(),
+            ),
+          ],
+        ),
       ),
       pinned: true,
       floating: true,
+      actions: isOwner
+          ? [
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AddEditCatScreen(cat: widget.cat)),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () => _deleteCat(widget.cat.id),
+        ),
+      ]
+          : [],
     );
   }
+
+  void _deleteCat(String catId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Tem certeza que deseja remover este anúncio?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                await _catService.deleteCat(catId);
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao remover: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildImageIndicator() {
     return Row(
@@ -83,7 +144,7 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
           decoration: BoxDecoration(
             color: _currentPageIndex == index
                 ? Colors.white
-                : Colors.white.withValues(alpha: 0.5),
+                : Colors.white.withOpacity(0.5),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -117,6 +178,7 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               widget.cat.name,
@@ -125,12 +187,21 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const Spacer(),
+
             Text(
-              '${widget.cat.age} anos',
-              style: const TextStyle(fontSize: 18),
+                widget.cat.status,
+                style: TextStyle(
+                    fontSize: 18,
+                    color: widget.cat.status == 'Disponível' ? Colors.green : Colors.orange,
+                    fontWeight: FontWeight.bold
+                )
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${widget.cat.age} anos',
+          style: const TextStyle(fontSize: 18),
         ),
         const SizedBox(height: 8),
         Row(
@@ -212,25 +283,26 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
   }
 
   Widget _buildAdoptionButton(BuildContext context) {
+    final bool isAvailable = widget.cat.status == 'Disponível';
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: FilledButton.icon(
         icon: const Icon(Icons.pets),
-        label: const Text('Quero Adotar'),
-        onPressed: () => _showAdoptionDialog(context),
+        label: Text(isAvailable ? 'Quero Adotar' : 'Adoção em Andamento'),
+        onPressed: isAvailable ? () => _showAdoptionDialog(context) : null,
       ),
     );
   }
 
   void _showAdoptionDialog(BuildContext context) {
-    final catService = CatService();
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Iniciar Processo de Adoção'),
-        content: const Text('Confirmar interesse? Entraremos em contato.'),
+        content: const Text('Confirmar interesse? Após a confirmação, o gato ficará reservado para você e entraremos em contato.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -246,18 +318,22 @@ class _CatProfileScreenState extends State<CatProfileScreen> {
                 return;
               }
               try {
-                await catService.requestAdoption(userId, widget.cat.id);
-                
-                await catService.updateCatStatus(widget.cat.id, 'Adoção em andamento');
-                
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Solicitação enviada com sucesso!')),
-                );
+                await _catService.requestAdoption(userId, widget.cat.id);
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Solicitação enviada com sucesso!')),
+                  );
+                }
               } catch (e) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Erro: $e')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro: $e')),
+                  );
+                }
               }
             },
             child: const Text('Confirmar'),

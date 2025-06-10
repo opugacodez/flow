@@ -25,7 +25,7 @@ class AuthService {
         'phone': phone,
       });
     } catch (e) {
-      throw Exception('Erro ao registrar: ${e.toString()}');
+      throw Exception('Ocorreu um erro durante o cadastro. Tente novamente.');
     }
   }
 
@@ -36,7 +36,7 @@ class AuthService {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
     } catch (e) {
-      throw Exception('Erro no login: ${e.toString()}');
+      throw Exception('Ocorreu um erro durante o login. Tente novamente.');
     }
   }
 
@@ -44,7 +44,7 @@ class AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email!);
     } catch (e) {
-      throw Exception('Erro ao recuperar senha: ${e.toString()}');
+      throw Exception('Ocorreu um erro ao tentar recuperar a senha.');
     }
   }
 

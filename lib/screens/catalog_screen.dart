@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flow/models/cat.dart';
-import 'package:flow/providers/auth_provider.dart';
+import 'package:flow/providers/catalog_provider.dart';
 import 'package:flow/screens/cat_profile_screen.dart';
 import 'package:flow/screens/filter_screen.dart';
 import 'package:flow/services/cat_service.dart';
@@ -8,18 +8,13 @@ import 'package:flow/widgets/custom_about_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class CatalogScreen extends StatefulWidget {
+class CatalogScreen extends StatelessWidget {
   const CatalogScreen({super.key});
 
   @override
-  State<CatalogScreen> createState() => _CatalogScreenState();
-}
-
-class _CatalogScreenState extends State<CatalogScreen> {
-  final CatService _catService = CatService();
-
-  @override
   Widget build(BuildContext context) {
+    final catalogProvider = Provider.of<CatalogProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gatos Disponíveis'),
@@ -32,11 +27,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.pushNamed(context, '/search'),
           ),
-          _buildPopupMenu(context),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'about') {
+                _showCustomAbout(context);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'about', child: Text('Sobre')),
+            ],
+          ),
         ],
       ),
       body: StreamBuilder<List<Cat>>(
-        stream: _catService.getCats(), // Usar Stream (RF005)
+        stream: catalogProvider.filteredCatsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -65,38 +69,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 
-  PopupMenuButton<String> _buildPopupMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        switch (value) {
-          case 'favorites':
-            Navigator.pushNamed(context, '/favorites');
-            break;
-          case 'profile':
-            Navigator.pushNamed(context, '/profile');
-            break;
-          case 'about':
-            _showCustomAbout(context);
-            break;
-          case 'logout':
-            Provider.of<AuthProvider>(context, listen: false).signOut();
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'favorites', child: Text('Meus Favoritos')),
-        const PopupMenuItem(value: 'profile', child: Text('Meu Perfil')),
-        const PopupMenuItem(value: 'about', child: Text('Sobre')),
-        const PopupMenuItem(value: 'logout', child: Text('Sair')),
-      ],
-    );
-  }
-  
   void _showFilterDialog(BuildContext context) {
-    // A lógica de filtro precisará ser adaptada para funcionar com o stream do Firestore.
-    // Por simplicidade, a implementação original é mantida, mas idealmente seria refatorada.
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => const FilterScreen(),
     );
   }
@@ -123,7 +99,7 @@ class _CatCard extends StatelessWidget {
           MaterialPageRoute(builder: (context) => CatProfileScreen(cat: cat)),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: Stack(
@@ -133,7 +109,7 @@ class _CatCard extends StatelessWidget {
                     cat.profileImageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
-                        const Center(child: Icon(Icons.error)),
+                    const Center(child: Icon(Icons.error)),
                   ),
                   if (userId != null)
                     Positioned(
@@ -152,7 +128,7 @@ class _CatCard extends StatelessWidget {
                               if (isFavorited) {
                                 catService.removeFavorite(userId, cat.id);
                               } else {
-                                catService.addFavorite(userId, cat.id); // RF003
+                                catService.addFavorite(userId, cat.id);
                               }
                             },
                           );
@@ -167,7 +143,7 @@ class _CatCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(cat.name, style: Theme.of(context).textTheme.titleMedium),
+                  Text(cat.name, style: Theme.of(context).textTheme.titleMedium, overflow: TextOverflow.ellipsis),
                   Text(cat.status,
                       style: TextStyle(
                         color: cat.status == 'Disponível' ? Colors.green : Colors.orange,
